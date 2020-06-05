@@ -7,17 +7,21 @@ from pyorm.databases.mysql import MysqlDatabase
 db = MysqlDatabase()
 
 
+def getDBconnection():
+    return db.connect(host=g.endpoint,
+                      user=g.username, password=g.password).cursor()
+
+
 @app.route('/db/mysql/connect', methods=['POST', 'GET'])
 def MySqlconnect():
-    endpoint = request.get_json()['Endpoint']
-    database = request.get_json()['Database']
-    username = request.get_json()['Username']
-    password = request.get_json()['Password']
+    g.endpoint = request.get_json()['Endpoint']
+    g.database = request.get_json()['DatabaseName']
+    g.username = request.get_json()['Username']
+    g.password = request.get_json()['Password']
     if 'conn' not in g:
-        g.conn = db.connect(host=endpoint, database=database,
-                            user=username, password=password).cursor()
-        g.conn.execute("CREATE DATABASE DDI")
-        g.conn.execute("USE DDI")
+        conn = getDBconnection()
+        conn.execute("CREATE DATABASE {}".format(g.database))
+        conn.close()
 
     else:
         return jsonify({'result': 'OK', 'response': 'database instance already present'})
@@ -27,7 +31,9 @@ def MySqlconnect():
 @app.route('/db/mysql/create', methods=['POST'])
 def MySqlcreate():
     print("create: ", request.get_json())
-    g.conn.execute('CREATE TABLE IF NOT EXIST Person ( \
+    conn = getDBconnection()
+    conn.execute('use {}'.format(g.database))
+    conn.execute('CREATE TABLE IF NOT EXIST Person ( \
                             PersonId int Not Null primary key, \
                             UserName varchar(255), \
                             LastName varchar(255),\
